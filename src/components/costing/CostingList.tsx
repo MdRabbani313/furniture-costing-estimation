@@ -3,13 +3,15 @@ import { useApp } from '../../context/AppContext';
 import { CostingRecord, ProductCategory } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { CostingDetailModal } from './CostingDetailModal';
+import { QuotationModal } from '../quotations/QuotationModal';
 import { Search, Filter, Eye, FileText, Trash2, PlusCircle, Calculator } from 'lucide-react';
 
 export const CostingList: React.FC = () => {
-  const { costings, deleteCosting, setActiveTab, addQuotation, customers, currency } = useApp();
+  const { costings, deleteCosting, setActiveTab, currency } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [selectedCosting, setSelectedCosting] = useState<CostingRecord | null>(null);
+  const [quotationCosting, setQuotationCosting] = useState<CostingRecord | undefined>(undefined);
 
   const categories = ['All', 'Box Bed', 'Wardrobe', 'Office Table', 'Study Table', 'Dressing Table', 'Shoe Rack', 'TV Unit', 'Deewan', 'Mandir'];
 
@@ -23,48 +25,8 @@ export const CostingList: React.FC = () => {
   });
 
   const handleConvertToQuotation = (costing: CostingRecord) => {
-    const defaultCustomer = customers[0] || {
-      id: 'cust-temp',
-      name: 'Walk-in Commercial Customer',
-      email: 'customer@woodcraft.com',
-      phone: '+91 98000 00000',
-      billingAddress: 'Client Site'
-    };
-
-    addQuotation({
-      customerId: defaultCustomer.id,
-      customerName: defaultCustomer.name,
-      customerEmail: defaultCustomer.email,
-      customerPhone: defaultCustomer.phone,
-      customerGstin: defaultCustomer.gstin,
-      billingAddress: defaultCustomer.billingAddress,
-      date: new Date().toISOString().split('T')[0],
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      items: [
-        {
-          id: `qi-${Date.now()}`,
-          costingId: costing.id,
-          productName: costing.productName,
-          description: `Furniture Costing ${costing.costingNumber} (${costing.variantName})`,
-          variantOrSize: costing.variantName,
-          quantity: costing.quantity,
-          unitPrice: costing.baseSellingPrice,
-          discountPercent: 0,
-          netPrice: costing.baseSellingPrice,
-          gstPercent: costing.gstPercent,
-          totalAmount: costing.grandTotal
-        }
-      ],
-      subtotal: costing.baseSellingPrice * costing.quantity,
-      discountAmount: 0,
-      taxTotal: costing.gstAmount * costing.quantity,
-      grandTotal: costing.grandTotal,
-      termsAndConditions: '1. 50% Advance with order.\n2. Delivery within 14 working days.',
-      status: 'Sent',
-      createdBy: 'Sales System'
-    });
-
-    setActiveTab('quotations');
+    setSelectedCosting(null);
+    setQuotationCosting(costing);
   };
 
   return (
@@ -198,6 +160,17 @@ export const CostingList: React.FC = () => {
           costing={selectedCosting}
           onClose={() => setSelectedCosting(null)}
           onConvertToQuotation={handleConvertToQuotation}
+        />
+      )}
+
+      {/* Convert to Quotation Builder Modal */}
+      {quotationCosting && (
+        <QuotationModal
+          initialCosting={quotationCosting}
+          onClose={() => {
+            setQuotationCosting(undefined);
+            setActiveTab('quotations');
+          }}
         />
       )}
     </div>

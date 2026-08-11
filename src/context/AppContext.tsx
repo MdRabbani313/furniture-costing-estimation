@@ -71,13 +71,18 @@ interface AppContextType {
   // Customer Actions
   addCustomer: (customer: Omit<Customer, 'id' | 'createdAt'>) => Customer;
   updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  deleteCustomer: (id: string) => void;
 
   // Quotation Actions
   addQuotation: (quo: Omit<Quotation, 'id' | 'quotationNumber'>) => Quotation;
+  updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   updateQuotationStatus: (id: string, status: Quotation['status']) => void;
+  deleteQuotation: (id: string) => void;
 
   // Invoice & Payment Actions
   addInvoice: (inv: Omit<Invoice, 'id' | 'invoiceNumber'>) => Invoice;
+  updateInvoice: (id: string, updates: Partial<Invoice>) => void;
+  deleteInvoice: (id: string) => void;
   recordPayment: (invoiceId: string, payment: Omit<PaymentRecord, 'id' | 'invoiceId'>) => void;
 
   // System Actions
@@ -319,6 +324,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Customer profile updated.`);
   };
 
+  const deleteCustomer = (id: string) => {
+    setCustomers((prev) => prev.filter((c) => c.id !== id));
+    showToast(`Customer profile removed.`);
+  };
+
   // Quotation Actions
   const addQuotation = (quoData: Omit<Quotation, 'id' | 'quotationNumber'>): Quotation => {
     const count = quotations.length + 1;
@@ -334,9 +344,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newQuotation;
   };
 
+  const updateQuotation = (id: string, updates: Partial<Quotation>) => {
+    setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
+    showToast(`Quotation updated.`);
+  };
+
   const updateQuotationStatus = (id: string, status: Quotation['status']) => {
     setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, status } : q)));
     showToast(`Quotation status changed to ${status}`);
+  };
+
+  const deleteQuotation = (id: string) => {
+    setQuotations((prev) => prev.filter((q) => q.id !== id));
+    showToast(`Quotation deleted.`);
   };
 
   // Invoice Actions
@@ -352,6 +372,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addLog(`Issued Tax Invoice ${invoiceNumber} for ${newInvoice.customerName}`, 'invoice');
     showToast(`Invoice ${invoiceNumber} generated!`);
     return newInvoice;
+  };
+
+  const updateInvoice = (id: string, updates: Partial<Invoice>) => {
+    setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, ...updates } : inv)));
+    showToast(`Invoice updated.`);
+  };
+
+  const deleteInvoice = (id: string) => {
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    showToast(`Invoice deleted.`);
   };
 
   const recordPayment = (invoiceId: string, paymentData: Omit<PaymentRecord, 'id' | 'invoiceId'>) => {
@@ -434,9 +464,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteCosting,
         addCustomer,
         updateCustomer,
+        deleteCustomer,
         addQuotation,
+        updateQuotation,
         updateQuotationStatus,
+        deleteQuotation,
         addInvoice,
+        updateInvoice,
+        deleteInvoice,
         recordPayment,
         resetToSampleData,
         importBulkData

@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Customer } from '../../types';
 import { CustomerDetailModal } from './CustomerDetailModal';
-import { Search, Plus, Eye, User, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, Trash2, User, Phone, Mail, MapPin } from 'lucide-react';
 
 export const CustomerList: React.FC = () => {
-  const { customers, addCustomer, invoices } = useApp();
+  const { customers, addCustomer, updateCustomer, deleteCustomer, invoices } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
+  // Customer Form State
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,32 +22,67 @@ export const CustomerList: React.FC = () => {
   const filteredCustomers = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.companyName && c.companyName.toLowerCase().includes(searchTerm.toLowerCase()))
+      (c.companyName && c.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      c.phone.includes(searchTerm)
   );
 
-  const handleCreateCustomer = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    addCustomer({
-      name,
-      companyName,
-      email,
-      phone,
-      gstin,
-      billingAddress,
-      shippingAddress: billingAddress,
-      city: 'Gurgaon',
-      state: 'Haryana'
-    });
-
+  const openAddModal = () => {
+    setEditingCustomer(null);
     setName('');
     setCompanyName('');
     setEmail('');
     setPhone('');
     setGstin('');
     setBillingAddress('');
-    setShowAddModal(false);
+    setShowModal(true);
+  };
+
+  const openEditModal = (cust: Customer) => {
+    setEditingCustomer(cust);
+    setName(cust.name);
+    setCompanyName(cust.companyName || '');
+    setEmail(cust.email);
+    setPhone(cust.phone);
+    setGstin(cust.gstin || '');
+    setBillingAddress(cust.billingAddress);
+    setShowModal(true);
+  };
+
+  const handleSaveCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    if (editingCustomer) {
+      updateCustomer(editingCustomer.id, {
+        name,
+        companyName,
+        email,
+        phone,
+        gstin,
+        billingAddress,
+        shippingAddress: billingAddress
+      });
+    } else {
+      addCustomer({
+        name,
+        companyName,
+        email,
+        phone,
+        gstin,
+        billingAddress,
+        shippingAddress: billingAddress,
+        city: 'Gurgaon',
+        state: 'Haryana'
+      });
+    }
+
+    setShowModal(false);
+  };
+
+  const handleDelete = (id: string, custName: string) => {
+    if (window.confirm(`Are you sure you want to delete customer ${custName}?`)) {
+      deleteCustomer(id);
+    }
   };
 
   return (
@@ -60,7 +97,7 @@ export const CustomerList: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={openAddModal}
           className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow-sm flex items-center gap-2 transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Add Customer Profile
@@ -73,7 +110,7 @@ export const CustomerList: React.FC = () => {
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search customer or company..."
+            placeholder="Search customer, company, or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -112,6 +149,11 @@ export const CustomerList: React.FC = () => {
                   <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="truncate">{cust.billingAddress}</span>
                 </div>
+                {cust.gstin && (
+                  <div className="text-[11px] font-mono font-bold text-amber-700 pt-0.5">
+                    GSTIN: {cust.gstin}
+                  </div>
+                )}
               </div>
 
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
@@ -121,13 +163,30 @@ export const CustomerList: React.FC = () => {
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <button
                   onClick={() => setSelectedCustomer(cust)}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg flex items-center gap-1.5"
                 >
-                  <Eye className="w-3.5 h-3.5 text-amber-400" /> View Customer Ledger
+                  <Eye className="w-3.5 h-3.5 text-amber-400" /> Ledger
                 </button>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEditModal(cust)}
+                    className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+                    title="Edit Customer Profile"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cust.id, cust.name)}
+                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                    title="Delete Customer Profile"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -141,23 +200,25 @@ export const CustomerList: React.FC = () => {
         />
       )}
 
-      {showAddModal && (
+      {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden text-xs">
             <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Add New Customer Profile</h3>
-              <button onClick={() => setShowAddModal(false)} className="p-1 text-slate-400 hover:text-white">
+              <h3 className="text-base font-bold text-white">
+                {editingCustomer ? 'Edit Customer Profile' : 'Add New Customer Profile'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="p-1 text-slate-400 hover:text-white">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateCustomer} className="p-6 space-y-3 text-xs">
+            <form onSubmit={handleSaveCustomer} className="p-6 space-y-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Customer Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">Customer Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Anand Sharma"
+                  placeholder="e.g. Anand Sharma"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 font-medium"
@@ -168,7 +229,7 @@ export const CustomerList: React.FC = () => {
                 <label className="block font-semibold text-slate-700 mb-1">Company / Firm Name</label>
                 <input
                   type="text"
-                  placeholder="Sharma Interior Solutions"
+                  placeholder="e.g. Sharma Interior Solutions"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 font-medium"
@@ -207,7 +268,7 @@ export const CustomerList: React.FC = () => {
                   placeholder="07AAAAA0000A1Z5"
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold"
+                  className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold uppercase"
                 />
               </div>
 
@@ -226,7 +287,7 @@ export const CustomerList: React.FC = () => {
               <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowModal(false)}
                   className="px-4 py-2 border border-slate-300 rounded-lg font-semibold text-slate-700"
                 >
                   Cancel
@@ -235,7 +296,7 @@ export const CustomerList: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg shadow-sm"
                 >
-                  Save Profile
+                  {editingCustomer ? 'Update Profile' : 'Save Profile'}
                 </button>
               </div>
             </form>

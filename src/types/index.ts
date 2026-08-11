@@ -181,6 +181,8 @@ export interface QuotationItem {
   totalAmount: number;
 }
 
+export type InvoiceItem = QuotationItem;
+
 export interface Quotation {
   id: string;
   quotationNumber: string; // e.g. QUO-2026-001
