@@ -1,0 +1,6 @@
+{
+  "name": "Furniture Costing & Commercial Management Portal",
+  "description": "Centralized web platform for furniture product costing, material & labour rates, automated quotation & invoice generation, customer management, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
