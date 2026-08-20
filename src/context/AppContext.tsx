@@ -7,9 +7,14 @@ import {
   Quotation,
   Invoice,
   PaymentRecord,
-  UserRole,
   ActivityLog,
-  RateHistoryEntry
+  RateHistoryEntry,
+  UserRole,
+  UnitMasterItem,
+  ManufacturingRates,
+  BoardRateMaster,
+  ArbudaCostingMaster,
+  CutListPanel
 } from '../types';
 import {
   initialMaterials,
@@ -19,7 +24,10 @@ import {
   initialQuotations,
   initialInvoices,
   initialActivityLogs,
-  initialRateHistory
+  initialRateHistory,
+  initialUnits,
+  initialManufacturingRates,
+  initialArbudaCostings
 } from '../data/initialData';
 import { getRolePermissions } from '../utils/formatters';
 
@@ -49,9 +57,36 @@ interface AppContextType {
   activityLogs: ActivityLog[];
   rateHistory: RateHistoryEntry[];
 
+  // Unit Master & Manufacturing Rates
+  units: UnitMasterItem[];
+  manufacturingRates: ManufacturingRates;
+  arbudaCostings: ArbudaCostingMaster[];
+  activeArbudaCostingId: string | null;
+  setActiveArbudaCostingId: (id: string | null) => void;
+
+  // CutList Transfer
+  cutListTransferPlanks: CutListPanel[] | null;
+  setCutListTransferPlanks: (planks: CutListPanel[] | null) => void;
+
   // Toast
   toast: Toast | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+
+  // Unit Master Actions
+  addUnit: (unit: Omit<UnitMasterItem, 'id'>) => void;
+  updateUnit: (id: string, updates: Partial<UnitMasterItem>) => void;
+  deleteUnit: (id: string) => void;
+
+  // Manufacturing Rates Actions
+  updateManufacturingRates: (rates: Partial<ManufacturingRates>) => void;
+  addBoardRate: (board: Omit<BoardRateMaster, 'id'>) => void;
+  updateBoardRate: (id: string, updates: Partial<BoardRateMaster>) => void;
+  deleteBoardRate: (id: string) => void;
+
+  // Arbuda Costing Master Actions
+  addArbudaCosting: (costing: Omit<ArbudaCostingMaster, 'id' | 'createdAt' | 'updatedAt'>) => ArbudaCostingMaster;
+  updateArbudaCosting: (id: string, updates: Partial<ArbudaCostingMaster>) => void;
+  deleteArbudaCosting: (id: string) => void;
 
   // Material Actions
   addMaterial: (item: Omit<MaterialItem, 'id' | 'lastUpdated'>) => void;
@@ -78,6 +113,7 @@ interface AppContextType {
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   updateQuotationStatus: (id: string, status: Quotation['status']) => void;
   deleteQuotation: (id: string) => void;
+  convertQuotationToInvoice: (quotationId: string) => Invoice | null;
 
   // Invoice & Payment Actions
   addInvoice: (inv: Omit<Invoice, 'id' | 'invoiceNumber'>) => Invoice;
@@ -93,24 +129,47 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  MATERIALS: 'furniture_portal_materials_v1',
-  PRODUCTS: 'furniture_portal_products_v1',
-  COSTINGS: 'furniture_portal_costings_v1',
-  CUSTOMERS: 'furniture_portal_customers_v1',
-  QUOTATIONS: 'furniture_portal_quotations_v1',
-  INVOICES: 'furniture_portal_invoices_v1',
-  LOGS: 'furniture_portal_logs_v1',
-  RATES: 'furniture_portal_rates_v1',
-  ROLE: 'furniture_portal_role_v1'
+  MATERIALS: 'arbuda_materials_v3',
+  PRODUCTS: 'arbuda_products_v3',
+  COSTINGS: 'arbuda_costings_v3',
+  CUSTOMERS: 'arbuda_customers_v3',
+  QUOTATIONS: 'arbuda_quotations_v3',
+  INVOICES: 'arbuda_invoices_v3',
+  LOGS: 'arbuda_logs_v3',
+  RATES: 'arbuda_rates_v3',
+  ROLE: 'arbuda_role_v3',
+  UNITS: 'arbuda_units_v3',
+  MFG_RATES: 'arbuda_mfg_rates_v3',
+  ARBUDA_COSTING_MASTER: 'arbuda_costing_master_v3'
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>('costing_master');
   const [currentRole, setCurrentRoleState] = useState<UserRole>('super_admin');
   const [currency, setCurrency] = useState<string>('₹');
   const [toast, setToast] = useState<Toast | null>(null);
+  const [activeArbudaCostingId, setActiveArbudaCostingId] = useState<string | null>('arb-cost-01');
+  const [cutListTransferPlanks, setCutListTransferPlanks] = useState<CutListPanel[] | null>(null);
 
-  // Initialize state with localStorage or default mock data
+  // Initialize Units Master (10+ units)
+  const [units, setUnits] = useState<UnitMasterItem[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.UNITS);
+    return saved ? JSON.parse(saved) : initialUnits;
+  });
+
+  // Manufacturing Rates (Per Min cutting, assembly, per inch edge bending, board rates)
+  const [manufacturingRates, setManufacturingRates] = useState<ManufacturingRates>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.MFG_RATES);
+    return saved ? JSON.parse(saved) : initialManufacturingRates;
+  });
+
+  // Arbuda Costing Master Sheets
+  const [arbudaCostings, setArbudaCostings] = useState<ArbudaCostingMaster[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ARBUDA_COSTING_MASTER);
+    return saved ? JSON.parse(saved) : initialArbudaCostings;
+  });
+
+  // Collections
   const [materials, setMaterials] = useState<MaterialItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.MATERIALS);
     return saved ? JSON.parse(saved) : initialMaterials;
@@ -151,7 +210,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialRateHistory;
   });
 
-  // Save to localStorage whenever data changes
+  // Persistence
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.UNITS, JSON.stringify(units));
+  }, [units]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MFG_RATES, JSON.stringify(manufacturingRates));
+  }, [manufacturingRates]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ARBUDA_COSTING_MASTER, JSON.stringify(arbudaCostings));
+  }, [arbudaCostings]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(materials));
   }, [materials]);
@@ -212,6 +283,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Switched user role to ${role.replace('_', ' ').toUpperCase()}`, 'info');
   };
 
+  // Unit Master Actions
+  const addUnit = (unit: Omit<UnitMasterItem, 'id'>) => {
+    const newUnit: UnitMasterItem = {
+      ...unit,
+      id: `u-${Date.now()}`
+    };
+    setUnits((prev) => [...prev, newUnit]);
+    addLog(`Created unit: ${newUnit.name} (${newUnit.code})`, 'material');
+    showToast(`Unit ${newUnit.code} added to master!`);
+  };
+
+  const updateUnit = (id: string, updates: Partial<UnitMasterItem>) => {
+    setUnits((prev) => prev.map((u) => (u.id === id ? { ...u, ...updates } : u)));
+    showToast(`Unit updated successfully.`);
+  };
+
+  const deleteUnit = (id: string) => {
+    setUnits((prev) => prev.filter((u) => u.id !== id));
+    showToast(`Unit removed from master.`);
+  };
+
+  // Manufacturing Rates Actions
+  const updateManufacturingRates = (updates: Partial<ManufacturingRates>) => {
+    setManufacturingRates((prev) => ({ ...prev, ...updates }));
+    showToast(`Manufacturing & Labour Rates updated!`);
+    addLog(`Updated manufacturing & labour time rates`, 'costing');
+  };
+
+  const addBoardRate = (board: Omit<BoardRateMaster, 'id'>) => {
+    const newBoard: BoardRateMaster = {
+      ...board,
+      id: `br-${Date.now()}`
+    };
+    setManufacturingRates((prev) => ({
+      ...prev,
+      boardRates: [...prev.boardRates, newBoard]
+    }));
+    showToast(`Board rate ${newBoard.name} added!`);
+  };
+
+  const updateBoardRate = (id: string, updates: Partial<BoardRateMaster>) => {
+    setManufacturingRates((prev) => ({
+      ...prev,
+      boardRates: prev.boardRates.map((b) => (b.id === id ? { ...b, ...updates } : b))
+    }));
+    showToast(`Board rate updated.`);
+  };
+
+  const deleteBoardRate = (id: string) => {
+    setManufacturingRates((prev) => ({
+      ...prev,
+      boardRates: prev.boardRates.filter((b) => b.id !== id)
+    }));
+    showToast(`Board rate removed.`);
+  };
+
+  // Arbuda Costing Master Actions
+  const addArbudaCosting = (costingData: Omit<ArbudaCostingMaster, 'id' | 'createdAt' | 'updatedAt'>): ArbudaCostingMaster => {
+    const newCosting: ArbudaCostingMaster = {
+      ...costingData,
+      id: `arb-cost-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+    setArbudaCostings((prev) => [newCosting, ...prev]);
+    setActiveArbudaCostingId(newCosting.id);
+    addLog(`Created Costing Sheet for ${newCosting.modelName} (${newCosting.modelCode})`, 'costing');
+    showToast(`Costing sheet ${newCosting.modelName} created!`);
+    return newCosting;
+  };
+
+  const updateArbudaCosting = (id: string, updates: Partial<ArbudaCostingMaster>) => {
+    setArbudaCostings((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              ...updates,
+              updatedAt: new Date().toISOString().split('T')[0]
+            }
+          : c
+      )
+    );
+    showToast(`Costing sheet updated.`);
+  };
+
+  const deleteArbudaCosting = (id: string) => {
+    setArbudaCostings((prev) => prev.filter((c) => c.id !== id));
+    if (activeArbudaCostingId === id) {
+      setActiveArbudaCostingId(arbudaCostings.length > 1 ? arbudaCostings[0].id : null);
+    }
+    showToast(`Costing sheet deleted.`);
+  };
+
   // Material Actions
   const addMaterial = (item: Omit<MaterialItem, 'id' | 'lastUpdated'>) => {
     const newItem: MaterialItem = {
@@ -229,7 +394,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((m) => {
         if (m.id === id) {
           if (updates.unitRate !== undefined && updates.unitRate !== m.unitRate) {
-            // Track rate history entry
             const historyEntry: RateHistoryEntry = {
               id: `rh-${Date.now()}`,
               materialId: m.id,
@@ -299,54 +463,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCosting = (id: string, updates: Partial<CostingRecord>) => {
     setCostings((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-    showToast(`Costing updated.`);
+    showToast(`Costing record updated!`);
   };
 
   const deleteCosting = (id: string) => {
     setCostings((prev) => prev.filter((c) => c.id !== id));
-    showToast(`Costing deleted.`);
+    showToast(`Costing record deleted.`);
   };
 
   // Customer Actions
-  const addCustomer = (custData: Omit<Customer, 'id' | 'createdAt'>): Customer => {
+  const addCustomer = (customerData: Omit<Customer, 'id' | 'createdAt'>): Customer => {
     const newCust: Customer = {
-      ...custData,
+      ...customerData,
       id: `cust-${Date.now()}`,
       createdAt: new Date().toISOString().split('T')[0]
     };
     setCustomers((prev) => [newCust, ...prev]);
-    showToast(`Customer ${newCust.name} saved.`);
+    showToast(`Customer ${newCust.name} added!`);
     return newCust;
   };
 
   const updateCustomer = (id: string, updates: Partial<Customer>) => {
     setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-    showToast(`Customer profile updated.`);
+    showToast(`Customer updated.`);
   };
 
   const deleteCustomer = (id: string) => {
     setCustomers((prev) => prev.filter((c) => c.id !== id));
-    showToast(`Customer profile removed.`);
+    showToast(`Customer deleted.`);
   };
 
   // Quotation Actions
   const addQuotation = (quoData: Omit<Quotation, 'id' | 'quotationNumber'>): Quotation => {
     const count = quotations.length + 1;
     const quotationNumber = `QUO-2026-${count.toString().padStart(3, '0')}`;
-    const newQuotation: Quotation = {
+    const newQuo: Quotation = {
       ...quoData,
-      id: `q-${Date.now()}`,
+      id: `quo-${Date.now()}`,
       quotationNumber
     };
-    setQuotations((prev) => [newQuotation, ...prev]);
-    addLog(`Generated Quotation ${quotationNumber} for ${newQuotation.customerName}`, 'quotation');
-    showToast(`Quotation ${quotationNumber} created!`);
-    return newQuotation;
+    setQuotations((prev) => [newQuo, ...prev]);
+    addLog(`Created Quotation ${quotationNumber} for ${newQuo.customerName}`, 'quotation');
+    showToast(`Quotation ${quotationNumber} generated!`);
+    return newQuo;
   };
 
   const updateQuotation = (id: string, updates: Partial<Quotation>) => {
     setQuotations((prev) => prev.map((q) => (q.id === id ? { ...q, ...updates } : q)));
-    showToast(`Quotation updated.`);
+    showToast(`Quotation updated!`);
   };
 
   const updateQuotationStatus = (id: string, status: Quotation['status']) => {
@@ -359,24 +523,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Quotation deleted.`);
   };
 
-  // Invoice Actions
-  const addInvoice = (invData: Omit<Invoice, 'id' | 'invoiceNumber'>): Invoice => {
+  const convertQuotationToInvoice = (quotationId: string): Invoice | null => {
+    const quo = quotations.find((q) => q.id === quotationId);
+    if (!quo) return null;
+
     const count = invoices.length + 1;
     const invoiceNumber = `INV-2026-${count.toString().padStart(3, '0')}`;
     const newInvoice: Invoice = {
+      id: `inv-${Date.now()}`,
+      invoiceNumber,
+      quotationId: quo.id,
+      customerId: quo.customerId,
+      customerName: quo.customerName,
+      customerPhone: quo.customerPhone,
+      customerGstin: quo.customerGstin,
+      billingAddress: quo.billingAddress,
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
+      items: quo.items,
+      subtotal: quo.subtotal,
+      discountTotal: quo.discountAmount,
+      taxTotal: quo.taxTotal,
+      grandTotal: quo.grandTotal,
+      paidAmount: 0,
+      outstandingBalance: quo.grandTotal,
+      paymentStatus: 'Unpaid',
+      createdBy: currentRole,
+      notes: `Converted from Quotation ${quo.quotationNumber}`
+    };
+
+    setInvoices((prev) => [newInvoice, ...prev]);
+    updateQuotationStatus(quo.id, 'Converted');
+    addLog(`Converted Quotation ${quo.quotationNumber} to Invoice ${invoiceNumber}`, 'invoice');
+    showToast(`Quotation ${quo.quotationNumber} converted to Invoice ${invoiceNumber}!`);
+    return newInvoice;
+  };
+
+  // Invoice & Payment Actions
+  const addInvoice = (invData: Omit<Invoice, 'id' | 'invoiceNumber'>): Invoice => {
+    const count = invoices.length + 1;
+    const invoiceNumber = `INV-2026-${count.toString().padStart(3, '0')}`;
+    const newInv: Invoice = {
       ...invData,
       id: `inv-${Date.now()}`,
       invoiceNumber
     };
-    setInvoices((prev) => [newInvoice, ...prev]);
-    addLog(`Issued Tax Invoice ${invoiceNumber} for ${newInvoice.customerName}`, 'invoice');
-    showToast(`Invoice ${invoiceNumber} generated!`);
-    return newInvoice;
+    setInvoices((prev) => [newInv, ...prev]);
+    addLog(`Created Invoice ${invoiceNumber} for ${newInv.customerName}`, 'invoice');
+    showToast(`Invoice ${invoiceNumber} created!`);
+    return newInv;
   };
 
   const updateInvoice = (id: string, updates: Partial<Invoice>) => {
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, ...updates } : inv)));
-    showToast(`Invoice updated.`);
+    showToast(`Invoice updated!`);
   };
 
   const deleteInvoice = (id: string) => {
@@ -384,18 +584,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Invoice deleted.`);
   };
 
-  const recordPayment = (invoiceId: string, paymentData: Omit<PaymentRecord, 'id' | 'invoiceId'>) => {
+  const recordPayment = (invoiceId: string, payment: Omit<PaymentRecord, 'id' | 'invoiceId'>) => {
     setInvoices((prev) =>
       prev.map((inv) => {
         if (inv.id === invoiceId) {
-          const newPaid = inv.paidAmount + paymentData.amount;
-          const newOutstanding = Math.max(0, inv.grandTotal - newPaid);
-          let newStatus: Invoice['paymentStatus'] = inv.paymentStatus;
+          const newPaid = Number((inv.paidAmount + payment.amount).toFixed(2));
+          const newOutstanding = Math.max(0, Number((inv.grandTotal - newPaid).toFixed(2)));
+          let newStatus: Invoice['paymentStatus'] = 'Partially Paid';
+          if (newPaid >= inv.grandTotal) newStatus = 'Paid';
+          if (newPaid === 0) newStatus = 'Unpaid';
 
-          if (newOutstanding === 0) newStatus = 'Paid';
-          else if (newPaid > 0) newStatus = 'Partially Paid';
+          addLog(`Recorded payment of ${currency}${payment.amount} for Invoice ${inv.invoiceNumber}`, 'payment');
 
-          addLog(`Recorded payment of ₹${paymentData.amount} for Invoice ${inv.invoiceNumber}`, 'payment');
           return {
             ...inv,
             paidAmount: newPaid,
@@ -418,8 +618,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setInvoices(initialInvoices);
     setActivityLogs(initialActivityLogs);
     setRateHistory(initialRateHistory);
+    setUnits(initialUnits);
+    setManufacturingRates(initialManufacturingRates);
+    setArbudaCostings(initialArbudaCostings);
     localStorage.clear();
-    showToast(`System reset to clean sample database!`, 'info');
+    showToast(`Arbuda Steel Industries database refreshed to default masters!`, 'info');
   };
 
   const importBulkData = (newMaterials: MaterialItem[], newProducts: Product[]) => {
@@ -451,8 +654,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         invoices,
         activityLogs,
         rateHistory,
+        units,
+        manufacturingRates,
+        arbudaCostings,
+        activeArbudaCostingId,
+        setActiveArbudaCostingId,
+        cutListTransferPlanks,
+        setCutListTransferPlanks,
         toast,
         showToast,
+        addUnit,
+        updateUnit,
+        deleteUnit,
+        updateManufacturingRates,
+        addBoardRate,
+        updateBoardRate,
+        deleteBoardRate,
+        addArbudaCosting,
+        updateArbudaCosting,
+        deleteArbudaCosting,
         addMaterial,
         updateMaterial,
         deleteMaterial,
@@ -469,6 +689,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateQuotation,
         updateQuotationStatus,
         deleteQuotation,
+        convertQuotationToInvoice,
         addInvoice,
         updateInvoice,
         deleteInvoice,

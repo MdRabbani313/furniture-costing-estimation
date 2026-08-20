@@ -1,6 +1,6 @@
 {
-  "name": "Furniture Costing & Commercial Management Portal",
-  "description": "Centralized web platform for furniture product costing, material & labour rates, automated quotation & invoice generation, customer management, and analytics.",
+  "name": "Arbuda Steel Industries - Commercial Costing & CutList Portal",
+  "description": "Enterprise costing engine, CutList 2D sheet optimizer, unit master, and quotation & invoice management for Arbuda Steel Industries.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

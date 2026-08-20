@@ -52,11 +52,11 @@ export const printQuotationDocument = (quotation: Quotation) => {
 
         <div class="header">
           <div>
-            <div class="logo">WOODCRAFT COMMERCIALS</div>
-            <div class="company-tag">Custom Furniture & Premium Architectural Joinery</div>
+            <div class="logo">ARBUDA STEEL INDUSTRIES</div>
+            <div class="company-tag">Commercial Furniture, Steel & Architectural Joinery</div>
             <div style="font-size: 12px; color: #4b5563; margin-top: 6px;">
-              Industrial Area Phase II, Gurgaon, Haryana 122001<br/>
-              GSTIN: 07AABCW1234F1Z9 | Phone: +91 98100 99887 | Sales@woodcraft.com
+              GIDC Industrial Estate, Ahmedabad, Gujarat 382445<br/>
+              GSTIN: 24AABCA9876F1Z2 | Phone: +91 98765 43210 | sales@arbudasteel.com
             </div>
           </div>
           <div>
@@ -192,11 +192,11 @@ export const printInvoiceDocument = (invoice: Invoice) => {
 
         <div class="header">
           <div>
-            <div class="logo">WOODCRAFT COMMERCIALS</div>
-            <div class="company-tag">Furniture Manufacturing & Interior Commercials</div>
+            <div class="logo">ARBUDA STEEL INDUSTRIES</div>
+            <div class="company-tag">Commercial Furniture, Steel & Architectural Joinery</div>
             <div style="font-size: 12px; color: #4b5563; margin-top: 6px;">
-              Industrial Area Phase II, Gurgaon, Haryana 122001<br/>
-              GSTIN: 07AABCW1234F1Z9 | Phone: +91 98100 99887 | Accounts@woodcraft.com
+              GIDC Industrial Estate, Ahmedabad, Gujarat 382445<br/>
+              GSTIN: 24AABCA9876F1Z2 | Phone: +91 98765 43210 | billing@arbudasteel.com
             </div>
           </div>
           <div>

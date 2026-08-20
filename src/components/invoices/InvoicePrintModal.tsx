@@ -30,9 +30,9 @@ export const InvoicePrintModal: React.FC<Props> = ({ invoice, onClose, onRecordP
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto text-xs">
           <div className="flex flex-col sm:flex-row justify-between pb-4 border-b border-slate-200 gap-4">
             <div>
-              <span className="font-extrabold text-emerald-800 text-sm block">WOODCRAFT COMMERCIALS</span>
-              <p className="text-slate-500">Furniture Manufacturing & Commercial Interiors</p>
-              <p className="text-slate-500">GSTIN: 07AABCW1234F1Z9</p>
+              <span className="font-extrabold text-amber-900 text-sm block">ARBUDA STEEL INDUSTRIES</span>
+              <p className="text-slate-500">Furniture, Steel & Commercial Manufacturing</p>
+              <p className="text-slate-500">GSTIN: 24AABCA9876F1Z2</p>
             </div>
 
             <div className="text-right">

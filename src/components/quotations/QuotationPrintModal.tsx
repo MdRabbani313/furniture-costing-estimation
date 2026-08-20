@@ -33,9 +33,9 @@ export const QuotationPrintModal: React.FC<Props> = ({ quotation, onClose, onCon
           {/* Company Branding & Customer info */}
           <div className="flex flex-col sm:flex-row justify-between pb-4 border-b border-slate-200 gap-4">
             <div>
-              <span className="font-extrabold text-indigo-900 text-sm block">WOODCRAFT COMMERCIALS</span>
-              <p className="text-slate-500">Furniture Manufacturing & Architectural Joinery</p>
-              <p className="text-slate-500">Gurgaon, Haryana | GSTIN: 07AABCW1234F1Z9</p>
+              <span className="font-extrabold text-amber-900 text-sm block">ARBUDA STEEL INDUSTRIES</span>
+              <p className="text-slate-500">Furniture, Steel & Architectural Commercial Manufacturing</p>
+              <p className="text-slate-500">Ahmedabad, Gujarat | GSTIN: 24AABCA9876F1Z2</p>
             </div>
 
             <div className="text-right">

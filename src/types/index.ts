@@ -25,7 +25,40 @@ export type MaterialCategory =
   | 'Bed Socket & Hardware'
   | 'Other Accessories';
 
-export type MaterialUnit = 'SQFT' | 'Piece' | 'Pair' | 'Meter' | 'Feet' | 'Set' | 'Roll' | 'KG' | 'Box';
+export type MaterialUnit = string;
+
+export type UnitCategory = 'Area' | 'Length' | 'Volume' | 'Weight' | 'Count' | 'Sheet';
+
+export interface UnitMasterItem {
+  id: string;
+  code: string; // e.g. SQFT, SQM, MM, NOS
+  name: string; // e.g. Square Feet, Square Meter
+  symbol: string; // e.g. sq.ft, sq.m, mm, pcs
+  category: UnitCategory;
+  baseConversionFactor: number; // multiplier to base unit in category
+  isDefault?: boolean;
+  description?: string;
+}
+
+export interface BoardRateMaster {
+  id: string;
+  name: string; // e.g. ACTION TESSA, RATE 18MM GREEN LAM- HMR, RATE 18MM PLB
+  ratePerSqft: number; // e.g. 90, 110, 33
+  thicknessMm: number;
+  grade?: string;
+}
+
+export interface ManufacturingRates {
+  cuttingRatePerMin: number; // e.g. 8.00 INR/min
+  labourRatePerMin: number; // e.g. 5.00 INR/min
+  edgeBendingRatePerInch: number; // e.g. 1.00 INR/inch
+  dailyLabourWage: number; // e.g. 600 INR
+  workingHoursPerDay: number; // e.g. 8 hrs
+  dailyMachineCost: number; // e.g. 1000 INR
+  boardWastagePercent: number; // e.g. 5%
+  defaultGstPercent: number; // e.g. 18%
+  boardRates: BoardRateMaster[];
+}
 
 export interface MaterialItem {
   id: string;
@@ -246,4 +279,172 @@ export interface ActivityLog {
   role: UserRole;
   action: string;
   type: 'costing' | 'quotation' | 'invoice' | 'material' | 'product' | 'payment';
+}
+
+// ARBUDA STEEL INDUSTRIES EXCEL SPREADSHEET PLANK-BY-PLANK BOM TYPES
+export type PlankItemType = 'ASSEMBLY' | 'PLB' | 'PURCHASE' | 'FABRICATION' | 'HARDWARE';
+
+export interface PlankCostingRow {
+  id: string;
+  srNo: number;
+  partCode: string; // e.g. ARBUDA-ASSLY-01, PLANK-1, ARB-PUR-03
+  description: string; // e.g. MAIN ASSEMBLY, TOP, BOTTOM, 5MM WOOD SCREW, HINGES
+  totQty: number;
+  type: PlankItemType;
+  material: string; // e.g. RATE 18MM PLB, ACTION TESSA 90, RATE 18MM GREEN LAM- HMR
+  thick: number; // in mm, e.g. 18
+  widthInches: number; // width in inches
+  lengthInches: number; // length in inches
+  areaSqFt: number; // (width * length) / 144
+  totAreaSqFt: number; // areaSqFt * totQty
+  rawMaterialCost: number; // totAreaSqFt * BoardRate
+  cuttingTimeMins: number; // cutting time in mins
+  cuttingCost: number; // cuttingTimeMins * cuttingRatePerMin * totQty
+  edgeBendingWidthWise: number; // count of width edges to bend (0, 1, 2)
+  edgeBendingLengthWise: number; // count of length edges to bend (0, 1, 2)
+  totalEdgeBendingLengthInches: number; // (width * widthWise + length * lengthWise) * totQty
+  edgeBendingCost: number; // totalEdgeBendingLengthInches * edgeBendingRatePerInch
+  purchaseRate: number; // for purchase / hardware items
+  purchaseCost: number; // purchaseRate * totQty
+  nosOfLabours: number;
+  labourTimeMins: number;
+  assemblyCost: number; // nosOfLabours * labourTimeMins * labourRatePerMin
+  basicCost: number; // rawMaterialCost + cuttingCost + edgeBendingCost + purchaseCost + assemblyCost
+  profitMarginPercent: number; // e.g. 15%
+  profitMarginAmount: number;
+  sellingPrice: number; // basicCost + profitMarginAmount
+}
+
+export interface ArbudaCostingMaster {
+  id: string;
+  modelCode: string; // e.g. ARB-CUP-7830
+  modelName: string; // e.g. 78X30 CUPBOARD
+  category: ProductCategory;
+  dimensions: {
+    width: number;
+    height: number;
+    depth: number;
+    unit: 'inches' | 'mm';
+  };
+  rows: PlankCostingRow[];
+  cuttingRatePerMin: number;
+  labourRatePerMin: number;
+  edgeBendingRatePerInch: number;
+  
+  // Summary Aggregates
+  totalRawMaterialCost: number;
+  totalCuttingCost: number;
+  totalEdgeBendingCost: number;
+  totalPurchaseCost: number;
+  totalAssemblyCost: number;
+  totalBasicCost: number;
+  overallMarginPercent: number; // e.g. 15%
+  totalProfitMarginAmount: number;
+  finalOfferPrice: number; // Basic + Margin
+  gstPercent: number; // 18%
+  gstAmount: number;
+  totalWithGst: number;
+  
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
+}
+
+// CUTLIST OPTIMIZER 2D SHEET PACKING TYPES (https://www.cutlistoptimizer.com/)
+export interface CutListPanel {
+  id: string;
+  name: string; // e.g. "PLANK-1 TOP", "DOOR-1"
+  length: number; // in inches or mm
+  width: number; // in inches or mm
+  quantity: number;
+  material: string; // e.g. "18mm PLB", "Greenlam HMR"
+  canRotate: boolean; // Grain direction constraint
+  edgeBending: {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+  };
+  color?: string;
+  priority?: number;
+}
+
+export interface CutListStock {
+  id: string;
+  name: string; // e.g. "Standard 8x4 Sheet (96x48 in)"
+  length: number;
+  width: number;
+  quantity: number;
+  material: string;
+  costPerSheet: number;
+}
+
+export interface CutListOptions {
+  kerfThickness: number; // Blade thickness (e.g. 3mm or 0.125")
+  trimMargin: number; // Edge trim on stock sheet (e.g. 0.25")
+  allowRotation: boolean;
+  cutPreference: 'minimal_waste' | 'guillotine_length' | 'guillotine_width';
+  labelsOnPanels: boolean;
+  showDimensions: boolean;
+}
+
+export interface CutListPlacedPanel {
+  panelId: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  length: number;
+  rotated: boolean;
+  material: string;
+  color: string;
+  edgeBending: {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+  };
+}
+
+export interface CutListWasteRect {
+  x: number;
+  y: number;
+  width: number;
+  length: number;
+  area: number;
+}
+
+export interface CutListCutLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  cutIndex: number;
+  isGuillotine: boolean;
+}
+
+export interface CutListSheetLayout {
+  sheetIndex: number;
+  stockSheet: CutListStock;
+  placedPanels: CutListPlacedPanel[];
+  wasteRectangles: CutListWasteRect[];
+  cutLines: CutListCutLine[];
+  usedArea: number;
+  wasteArea: number;
+  efficiencyPercent: number;
+  totalCutsCount: number;
+}
+
+export interface CutListResult {
+  totalStockSheetsUsed: number;
+  totalPlacedPanels: number;
+  totalPanelsRequested: number;
+  unplacedPanels: { name: string; width: number; length: number; count: number }[];
+  overallEfficiencyPercent: number;
+  totalUsedAreaSqft: number;
+  totalWasteAreaSqft: number;
+  totalCutsCount: number;
+  totalSheetCost: number;
+  sheetLayouts: CutListSheetLayout[];
+  calculatedAt: string;
 }
